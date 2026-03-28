@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WRSE QUANT ENGINE</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: #141b2d;
+            --text-color: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border-color: #1e293b;
+            --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.3);
+            --success: #10b981;
+            --danger: #ef4444;
+            --header-bg: #0f172a;
+            --row-alt: #1e293b;
+        }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: linear-gradient(180deg, rgba(20,27,45,1) 0%, rgba(11,15,25,1) 100%);
+            border-bottom: 1px solid var(--border-color);
+        }
+        h1 { margin: 0; color: #fff; font-size: 2.2rem; font-weight: 700; letter-spacing: -0.5px; }
+        .subtitle { color: var(--accent); font-weight: 600; margin-top: 10px; font-size: 1.1rem; }
+        .tagline { color: var(--text-muted); font-size: 0.95rem; margin-top: 8px; }
+
+        .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 40px; }
+        .summary-card { 
+            background: var(--panel-bg); padding: 25px 20px; 
+            border-radius: 12px; text-align: center; 
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .summary-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px -3px var(--accent-glow);
+            border-color: var(--accent);
+        }
+        .summary-card h3 { margin-top: 0; margin-bottom: 5px; color: var(--text-muted); font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: 2.2rem; font-weight: 800; color: #fff; margin-bottom: 5px; }
+        .stat-sub { font-size: 0.85rem; color: var(--text-muted); font-weight: 500;}
+        .positive { color: var(--success); }
+        .negative { color: var(--danger); }
+        .neutral { color: var(--text-muted); }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 16px;
+            align-items: end;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+            margin-bottom: 28px;
+        }
+        .control-group { display: flex; flex-direction: column; gap: 8px; }
+        .control-group label { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; letter-spacing: 0.3px; }
+        input[type="date"], select, input[type="number"] {
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            background: #0f172a;
+            color: var(--text-color);
+            font-size: 0.95rem;
+            outline: none;
+        }
+        button {
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(59, 130, 246, 0.5);
+            background: rgba(59, 130, 246, 0.15);
+            color: #e2e8f0;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        button:hover {
+            background: rgba(59, 130, 246, 0.25);
+            border-color: rgba(59, 130, 246, 0.85);
+        }
+        .inline {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .chip {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            padding: 8px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--border-color);
+            background: #0f172a;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .chip input { margin: 0; }
+        
+        .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 24px; margin-bottom: 40px; }
+        .chart-box { 
+            background: var(--panel-bg); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 25px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+            height: 380px; display: flex; flex-direction: column;
+        }
+        .chart-box h3 { margin-top: 0; margin-bottom: 20px; color: #fff; font-weight: 600; font-size: 1.1rem; }
+        
+        .data-section { background: var(--panel-bg); padding: 25px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); overflow-x: auto; margin-bottom: 40px;}
+        .data-section h3 { margin-top: 0; color: #fff; font-size: 1.2rem; margin-bottom: 20px; }
+        table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+        th, td { border-bottom: 1px solid var(--border-color); padding: 14px 16px; text-align: right; }
+        th { background-color: var(--header-bg); text-align: center; color: var(--text-muted); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;}
+        td:first-child { text-align: left; font-weight: 600; color: #fff; border-left: 3px solid transparent;}
+        tbody tr:hover { background-color: var(--row-alt); }
+        tbody tr:hover td:first-child { border-left: 3px solid var(--accent); }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <h1>WRSE QUANT ENGINE</h1>
+            <div class="subtitle">Walkforward-Regime-Shock-Execution</div>
+            <div class="tagline">Out-of-Sample (OOS) WFO Performance Validation <span id="rangeTag">[2020 &rarr; 2024]</span></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="controls">
+            <div class="control-group">
+                <label>Start Date</label>
+                <input type="date" id="startDate">
+            </div>
+            <div class="control-group">
+                <label>End Date</label>
+                <input type="date" id="endDate">
+            </div>
+            <div class="control-group">
+                <label>Mode</label>
+                <select id="modeSelect">
+                    <option value="ab">AB Hybrid (exec-aware)</option>
+                    <option value="taker">Taker-only (stress)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Secondary Chart</label>
+                <select id="secondarySelect">
+                    <option value="drawdown">Drawdown</option>
+                    <option value="rollSharpe">Rolling Sharpe</option>
+                    <option value="rollVol">Rolling Volatility</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Window (days)</label>
+                <input type="number" id="windowDays" value="60" min="10" max="365" step="5">
+            </div>
+            <div class="control-group">
+                <div class="inline">
+                    <span class="chip"><input type="checkbox" id="overlayTaker" checked>Overlay Taker</span>
+                </div>
+                <button id="applyBtn" type="button">Apply</button>
+            </div>
+        </div>
+
+        <div class="summary">
+            <div class="summary-card">
+                <h3>Total Return</h3>
+                <div class="stat-value" id="valTotalReturn">-</div>
+                <div class="stat-sub" id="subTotalReturn">-</div>
+            </div>
+            <div class="summary-card">
+                <h3>Max Drawdown</h3>
+                <div class="stat-value" id="valMdd">-</div>
+                <div class="stat-sub" id="subMdd">-</div>
+            </div>
+            <div class="summary-card">
+                <h3>Sharpe Ratio</h3>
+                <div class="stat-value" id="valSharpe" style="color: #38bdf8;">-</div>
+                <div class="stat-sub" id="subSharpe">-</div>
+            </div>
+            <div class="summary-card">
+                <h3>CAGR</h3>
+                <div class="stat-value" id="valCagr">-</div>
+                <div class="stat-sub" id="subCagr">-</div>
+            </div>
+            <div class="summary-card">
+                <h3>Sortino</h3>
+                <div class="stat-value" id="valSortino">-</div>
+                <div class="stat-sub" id="subSortino">-</div>
+            </div>
+            <div class="summary-card">
+                <h3>Calmar</h3>
+                <div class="stat-value" id="valCalmar">-</div>
+                <div class="stat-sub" id="subCalmar">-</div>
+            </div>
+            <div class="summary-card">
+                <h3>Volatility (ann.)</h3>
+                <div class="stat-value" id="valVol">-</div>
+                <div class="stat-sub" id="subVol">-</div>
+            </div>
+            <div class="summary-card">
+                <h3>Win Rate (daily)</h3>
+                <div class="stat-value" id="valWinRate">-</div>
+                <div class="stat-sub" id="subWinRate">-</div>
+            </div>
+        </div>
+
+        <div class="charts">
+            <div class="chart-box">
+                <h3>Equity Curve (OOS)</h3>
+                <div style="flex:1; position: relative;">
+                    <canvas id="equityChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-box">
+                <h3 id="secondaryTitle">Drawdown</h3>
+                <div style="flex:1; position: relative;">
+                    <canvas id="secondaryChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="charts">
+            <div class="chart-box">
+                <h3>Yearly Total Return</h3>
+                <div style="flex:1; position: relative;">
+                    <canvas id="yearReturnChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-box">
+                <h3>Yearly Sharpe</h3>
+                <div style="flex:1; position: relative;">
+                    <canvas id="yearSharpeChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="data-section">
+            <h3>WFO Splits (Train → Test)</h3>
+            <table id="splitsTable">
+                <thead>
+                    <tr>
+                        <th>Test Year (OOS)</th>
+                        <th>Train Window</th>
+                        <th>Return (AB)</th>
+                        <th>MDD (AB)</th>
+                        <th>Sharpe (AB / Taker)</th>
+                        <th>Weight</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        const hardcoded = {
+            splits: [
+                { train: [2020], test: 2021, AB_return_pct: 8.67, AB_mdd_pct: -13.08, AB_sharpe: 0.5469, AB_taker_sharpe: 0.3983, best_w: 0.5 },
+                { train: [2020, 2021], test: 2022, AB_return_pct: -0.26, AB_mdd_pct: -11.76, AB_sharpe: 0.0294, AB_taker_sharpe: -0.1931, best_w: 0.3 },
+                { train: [2020, 2021, 2022], test: 2023, AB_return_pct: 79.92, AB_mdd_pct: -11.17, AB_sharpe: 1.1083, AB_taker_sharpe: 1.0828, best_w: 0.7 },
+                { train: [2020, 2021, 2022, 2023], test: 2024, AB_return_pct: 7.41, AB_mdd_pct: -2.24, AB_sharpe: 1.3403, AB_taker_sharpe: 1.0212, best_w: 0.3 }
+            ],
+            yearly_ab: [
+                { year: 2021, total_return_pct: 8.67, mdd_pct: -13.08, sharpe: 0.55 },
+                { year: 2022, total_return_pct: -0.26, mdd_pct: -11.76, sharpe: 0.03 },
+                { year: 2023, total_return_pct: 79.92, mdd_pct: -11.17, sharpe: 1.11 },
+                { year: 2024, total_return_pct: 7.41, mdd_pct: -2.24, sharpe: 1.34 }
+            ],
+            yearly_ab_taker: [
+                { year: 2021, total_return_pct: 5.74, mdd_pct: -14.38, sharpe: 0.40 },
+                { year: 2022, total_return_pct: -2.67, mdd_pct: -12.84, sharpe: -0.19 },
+                { year: 2023, total_return_pct: 80.23, mdd_pct: -12.46, sharpe: 1.08 },
+                { year: 2024, total_return_pct: 5.61, mdd_pct: -3.12, sharpe: 1.02 }
+            ]
+        };
+
+        const fallbackSummary = {
+            ab: { total: 1.0945, cagr: 0.2035, mdd: -0.1308, sharpe: 0.6493 },
+            taker: { total: 0.9588, cagr: 0.1834, mdd: -0.1438, sharpe: 0.5885 }
+        };
+
+        const state = {
+            equity_ab: null,
+            equity_ab_taker: null,
+            yearly_ab: null,
+            yearly_ab_taker: null,
+            splits: null,
+            charts: {}
+        };
+
+        function clamp(n, a, b) { return Math.min(Math.max(n, a), b); }
+
+        function toDateStr(d) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+
+        async function loadJson(url) {
+            try {
+                const r = await fetch(url, { cache: 'no-store' });
+                if (!r.ok) return null;
+                return await r.json();
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function parseEquity(arr) {
+            if (!Array.isArray(arr)) return null;
+            const out = arr
+                .map(x => {
+                    const t = new Date(String(x.time) + 'T00:00:00');
+                    const v = Number(x.capital);
+                    return { t, v };
+                })
+                .filter(x => Number.isFinite(x.v) && !Number.isNaN(x.t.getTime()))
+                .sort((a, b) => a.t - b.t);
+            return out.length >= 2 ? out : null;
+        }
+
+        function filterEquity(eq, start, end) {
+            if (!eq) return null;
+            return eq.filter(p => p.t >= start && p.t <= end);
+        }
+
+        function mean(a) { return a.reduce((s, x) => s + x, 0) / (a.length || 1); }
+        function stdev(a) {
+            if (a.length < 2) return 0;
+            const m = mean(a);
+            let v = 0;
+            for (const x of a) v += (x - m) * (x - m);
+            return Math.sqrt(v / (a.length - 1));
+        }
+
+        function calcMetrics(eq) {
+            if (!eq || eq.length < 2) {
+                return { total: 0, cagr: 0, mdd: 0, sharpe: 0, sortino: 0, vol: 0, calmar: 0, win: 0 };
+            }
+            const vals = eq.map(p => p.v);
+            const rets = [];
+            for (let i = 1; i < vals.length; i++) rets.push((vals[i] / vals[i - 1]) - 1);
+            const total = (vals[vals.length - 1] / vals[0]) - 1;
+            const days = eq.length;
+            const years = days / 365;
+            const cagr = years > 0 ? Math.pow(vals[vals.length - 1] / vals[0], 1 / years) - 1 : 0;
+
+            let peak = vals[0];
+            let mdd = 0;
+            for (const v of vals) {
+                if (v > peak) peak = v;
+                const dd = (v - peak) / peak;
+                if (dd < mdd) mdd = dd;
+            }
+
+            const avg = mean(rets);
+            const sd = stdev(rets);
+            const vol = sd > 0 ? sd * Math.sqrt(365) : 0;
+            const sharpe = sd > 0 ? (avg / sd) * Math.sqrt(365) : 0;
+            const down = rets.filter(x => x < 0);
+            const downSd = stdev(down);
+            const sortino = downSd > 0 ? (avg / downSd) * Math.sqrt(365) : 0;
+            const calmar = mdd < 0 ? cagr / Math.abs(mdd) : 0;
+            const win = rets.length > 0 ? rets.filter(x => x > 0).length / rets.length : 0;
+            return { total, cagr, mdd, sharpe, sortino, vol, calmar, win };
+        }
+
+        function calcDrawdown(eq) {
+            if (!eq || eq.length < 2) return [];
+            const out = [];
+            let peak = eq[0].v;
+            for (const p of eq) {
+                if (p.v > peak) peak = p.v;
+                out.push({ t: p.t, v: (p.v - peak) / peak });
+            }
+            return out;
+        }
+
+        function calcRolling(eq, windowDays, kind) {
+            if (!eq || eq.length < 5) return [];
+            const w = clamp(parseInt(windowDays || 60, 10), 10, 365);
+            const vals = eq.map(p => p.v);
+            const rets = [];
+            for (let i = 1; i < vals.length; i++) rets.push((vals[i] / vals[i - 1]) - 1);
+            const out = [];
+            for (let i = w; i < rets.length; i++) {
+                const slice = rets.slice(i - w, i);
+                const m = mean(slice);
+                const sd = stdev(slice);
+                let v = 0;
+                if (kind === 'rollSharpe') v = sd > 0 ? (m / sd) * Math.sqrt(365) : 0;
+                if (kind === 'rollVol') v = sd > 0 ? sd * Math.sqrt(365) : 0;
+                out.push({ t: eq[i + 1].t, v });
+            }
+            return out;
+        }
+
+        function fmtPctSigned(x, digits = 2) {
+            const v = Number(x);
+            if (!Number.isFinite(v)) return '-';
+            const s = (v >= 0 ? '+' : '') + (v * 100).toFixed(digits) + '%';
+            return s;
+        }
+        function fmtPct(x, digits = 2) {
+            const v = Number(x);
+            if (!Number.isFinite(v)) return '-';
+            return (v * 100).toFixed(digits) + '%';
+        }
+        function fmtNum(x, digits = 2) {
+            const v = Number(x);
+            if (!Number.isFinite(v)) return '-';
+            return v.toFixed(digits);
+        }
+
+        function setCard(id, text, cls) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = text;
+            el.className = 'stat-value' + (cls ? ' ' + cls : '');
+        }
+
+        function setSub(id, text) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = text;
+        }
+
+        function downsampleXY(points, maxN) {
+            if (!points || points.length <= maxN) return points || [];
+            const step = Math.ceil(points.length / maxN);
+            const out = [];
+            for (let i = 0; i < points.length; i += step) out.push(points[i]);
+            if (out[out.length - 1] !== points[points.length - 1]) out.push(points[points.length - 1]);
+            return out;
+        }
+
+        function updateSplitsTable(start, end) {
+            const tb = document.querySelector('#splitsTable tbody');
+            if (!tb) return;
+            const splits = state.splits || hardcoded.splits;
+            tb.innerHTML = '';
+            const y0 = start.getFullYear();
+            const y1 = end.getFullYear();
+            const rows = splits.filter(r => Number(r.test) >= y0 && Number(r.test) <= y1);
+            for (const r of rows) {
+                const train = Array.isArray(r.train) ? r.train.join('-') : String(r.train || '');
+                const ret = Number(r.AB_return_pct);
+                const mdd = Number(r.AB_mdd_pct);
+                const shr = Number(r.AB_sharpe);
+                const shrT = Number(r.AB_taker_sharpe);
+                const w = r.best_w !== undefined ? Number(r.best_w) : Number(r.weight || 0);
+                const retCls = ret > 0 ? 'positive' : (ret < 0 ? 'negative' : 'neutral');
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${r.test}</td>
+                    <td style="color: var(--text-muted)">${train}</td>
+                    <td><span class="${retCls}">${fmtPctSigned(ret / 100, 2)}</span></td>
+                    <td><span class="negative">${fmtPctSigned(mdd / 100, 2)}</span></td>
+                    <td>${fmtNum(shr, 2)} / ${fmtNum(shrT, 2)}</td>
+                    <td>${fmtNum(w, 2)}</td>
+                `;
+                tb.appendChild(row);
+            }
+        }
+
+        function updateYearCharts(start, end) {
+            const y0 = start.getFullYear();
+            const y1 = end.getFullYear();
+            const ya = (state.yearly_ab || hardcoded.yearly_ab).filter(r => Number(r.year) >= y0 && Number(r.year) <= y1);
+            const yt = (state.yearly_ab_taker || hardcoded.yearly_ab_taker).filter(r => Number(r.year) >= y0 && Number(r.year) <= y1);
+
+            const labels = ya.map(r => String(r.year));
+            const abRet = ya.map(r => Number(r.total_return_pct));
+            const abShr = ya.map(r => Number(r.sharpe));
+            const tkShr = labels.map(y => {
+                const r = yt.find(x => String(x.year) === y);
+                return r ? Number(r.sharpe) : null;
+            });
+
+            if (state.charts.yearReturn) state.charts.yearReturn.destroy();
+            const rctx = document.getElementById('yearReturnChart').getContext('2d');
+            state.charts.yearReturn = new Chart(rctx, {
+                type: 'bar',
+                data: { labels, datasets: [{ label: 'AB Return (%)', data: abRet, backgroundColor: '#3b82f6', borderRadius: 4 }] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#e2e8f0' } } },
+                    scales: { y: { grid: { color: '#1e293b' }, ticks: { callback: v => v + '%' } }, x: { grid: { display: false } } }
+                }
+            });
+
+            if (state.charts.yearSharpe) state.charts.yearSharpe.destroy();
+            const sctx = document.getElementById('yearSharpeChart').getContext('2d');
+            state.charts.yearSharpe = new Chart(sctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'AB Sharpe',
+                            data: abShr,
+                            borderColor: '#10b981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 3,
+                            pointBackgroundColor: '#10b981',
+                            pointRadius: 5,
+                            fill: true,
+                            tension: 0.35
+                        },
+                        {
+                            label: 'Taker Sharpe',
+                            data: tkShr,
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.0)',
+                            borderWidth: 2,
+                            pointBackgroundColor: '#ef4444',
+                            pointRadius: 4,
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.35
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#e2e8f0' } } },
+                    scales: { y: { grid: { color: '#1e293b' } }, x: { grid: { display: false } } }
+                }
+            });
+        }
+
+        function updateEquityCharts(start, end) {
+            const mode = document.getElementById('modeSelect').value;
+            const overlay = document.getElementById('overlayTaker').checked;
+            const sec = document.getElementById('secondarySelect').value;
+            const w = document.getElementById('windowDays').value;
+
+            const eqMain = filterEquity(mode === 'ab' ? state.equity_ab : state.equity_ab_taker, start, end);
+            const eqOverlay = overlay ? filterEquity(mode === 'ab' ? state.equity_ab_taker : state.equity_ab, start, end) : null;
+
+            const hasEquity = !!(eqMain && eqMain.length >= 2);
+            const mMain = hasEquity ? calcMetrics(eqMain) : null;
+            const fb = mode === 'ab' ? fallbackSummary.ab : fallbackSummary.taker;
+            const mShow = hasEquity ? mMain : fb;
+            setCard('valTotalReturn', fmtPctSigned(mShow.total), mShow.total >= 0 ? 'positive' : 'negative');
+            setCard('valCagr', fmtPctSigned(mShow.cagr), mShow.cagr >= 0 ? 'positive' : 'negative');
+            setCard('valMdd', fmtPctSigned(mShow.mdd), 'negative');
+            setCard('valSharpe', fmtNum(mShow.sharpe, 2), '');
+            if (hasEquity) {
+                setCard('valSortino', fmtNum(mMain.sortino, 2), '');
+                setCard('valCalmar', fmtNum(mMain.calmar, 2), '');
+                setCard('valVol', fmtPct(mMain.vol, 2), '');
+                setCard('valWinRate', fmtPct(mMain.win, 1), '');
+            } else {
+                setCard('valSortino', '-', '');
+                setCard('valCalmar', '-', '');
+                setCard('valVol', '-', '');
+                setCard('valWinRate', '-', '');
+            }
+
+            const mOther = hasEquity ? calcMetrics(eqOverlay) : null;
+            const otherName = mode === 'ab' ? 'Taker' : 'AB';
+            if (overlay) {
+                const fbO = mode === 'ab' ? fallbackSummary.taker : fallbackSummary.ab;
+                setSub('subTotalReturn', hasEquity ? `${otherName}: ${fmtPctSigned(mOther.total)}` : `${otherName}: ${fmtPctSigned(fbO.total)}`);
+                setSub('subCagr', hasEquity ? `${otherName}: ${fmtPctSigned(mOther.cagr)}` : `${otherName}: ${fmtPctSigned(fbO.cagr)}`);
+                setSub('subMdd', hasEquity ? `${otherName}: ${fmtPctSigned(mOther.mdd)}` : `${otherName}: ${fmtPctSigned(fbO.mdd)}`);
+                setSub('subSharpe', hasEquity ? `${otherName}: ${fmtNum(mOther.sharpe, 2)}` : `${otherName}: ${fmtNum(fbO.sharpe, 2)}`);
+                setSub('subSortino', hasEquity ? `${otherName}: ${fmtNum(mOther.sortino, 2)}` : '-');
+                setSub('subCalmar', hasEquity ? `${otherName}: ${fmtNum(mOther.calmar, 2)}` : '-');
+                setSub('subVol', hasEquity ? `${otherName}: ${fmtPct(mOther.vol, 2)}` : '-');
+                setSub('subWinRate', hasEquity ? `${otherName}: ${fmtPct(mOther.win, 1)}` : '-');
+            } else {
+                setSub('subTotalReturn', '-');
+                setSub('subCagr', '-');
+                setSub('subMdd', '-');
+                setSub('subSharpe', '-');
+                setSub('subSortino', '-');
+                setSub('subCalmar', '-');
+                setSub('subVol', '-');
+                setSub('subWinRate', '-');
+            }
+
+            const epts = downsampleXY(eqMain, 900);
+            const labels = epts.map(p => toDateStr(p.t));
+            const dataMain = epts.map(p => p.v);
+            const ds = [
+                { label: mode === 'ab' ? 'AB (exec-aware)' : 'Taker (stress)', data: dataMain, borderColor: '#3b82f6', borderWidth: 2, pointRadius: 0, tension: 0.1 }
+            ];
+            if (overlay && eqOverlay) {
+                const o = downsampleXY(eqOverlay, 900);
+                ds.push({ label: otherName, data: o.map(p => p.v), borderColor: '#ef4444', borderWidth: 2, pointRadius: 0, borderDash: [5, 5], tension: 0.1 });
+            }
+            if (state.charts.equity) state.charts.equity.destroy();
+            const ectx = document.getElementById('equityChart').getContext('2d');
+            state.charts.equity = new Chart(ectx, {
+                type: 'line',
+                data: { labels, datasets: ds },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#e2e8f0' } } },
+                    scales: { y: { grid: { color: '#1e293b' } }, x: { grid: { display: false } } }
+                }
+            });
+
+            const secTitle = document.getElementById('secondaryTitle');
+            if (secTitle) secTitle.textContent = sec === 'drawdown' ? 'Drawdown' : (sec === 'rollSharpe' ? 'Rolling Sharpe' : 'Rolling Volatility');
+
+            let secPts = [];
+            if (sec === 'drawdown') secPts = calcDrawdown(eqMain);
+            if (sec === 'rollSharpe') secPts = calcRolling(eqMain, w, 'rollSharpe');
+            if (sec === 'rollVol') secPts = calcRolling(eqMain, w, 'rollVol');
+            const sp = downsampleXY(secPts, 900);
+            const sLabels = sp.map(p => toDateStr(p.t));
+            const sData = sp.map(p => sec === 'drawdown' ? p.v * 100 : p.v);
+            if (state.charts.secondary) state.charts.secondary.destroy();
+            const sctx2 = document.getElementById('secondaryChart').getContext('2d');
+            state.charts.secondary = new Chart(sctx2, {
+                type: 'line',
+                data: { labels: sLabels, datasets: [{ label: secTitle ? secTitle.textContent : 'Metric', data: sData, borderColor: '#10b981', borderWidth: 2, pointRadius: 0, tension: 0.15, fill: false }] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#e2e8f0' } } },
+                    scales: {
+                        y: { grid: { color: '#1e293b' }, ticks: { callback: v => sec === 'drawdown' ? v + '%' : v } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function updateAll() {
+            const startStr = document.getElementById('startDate').value;
+            const endStr = document.getElementById('endDate').value;
+            if (!startStr || !endStr) return;
+            const start = new Date(startStr + 'T00:00:00');
+            const end = new Date(endStr + 'T23:59:59');
+            if (start > end) return;
+            updateEquityCharts(start, end);
+            updateYearCharts(start, end);
+            updateSplitsTable(start, end);
+        }
+
+        async function init() {
+            const eq1 = parseEquity(await loadJson('assets_public/equity_ab.json'));
+            const eq2 = parseEquity(await loadJson('assets_public/equity_ab_taker.json'));
+            state.equity_ab = eq1;
+            state.equity_ab_taker = eq2;
+            state.yearly_ab = await loadJson('assets_public/yearly_ab.json');
+            state.yearly_ab_taker = await loadJson('assets_public/yearly_ab_taker.json');
+            state.splits = await loadJson('assets_public/wfo_splits.json');
+
+            let start = new Date('2020-01-01T00:00:00');
+            let end = new Date('2024-12-31T00:00:00');
+            if (state.equity_ab && state.equity_ab.length > 0) {
+                start = state.equity_ab[0].t;
+                end = state.equity_ab[state.equity_ab.length - 1].t;
+            }
+            const tag = document.getElementById('rangeTag');
+            if (tag) tag.textContent = `[${start.getFullYear()} \u2192 ${end.getFullYear()}]`;
+            const sEl = document.getElementById('startDate');
+            const eEl = document.getElementById('endDate');
+            sEl.value = toDateStr(start);
+            eEl.value = toDateStr(end);
+            sEl.min = toDateStr(start);
+            sEl.max = toDateStr(end);
+            eEl.min = toDateStr(start);
+            eEl.max = toDateStr(end);
+
+            document.getElementById('applyBtn').addEventListener('click', updateAll);
+            document.getElementById('modeSelect').addEventListener('change', updateAll);
+            document.getElementById('secondarySelect').addEventListener('change', updateAll);
+            document.getElementById('windowDays').addEventListener('change', updateAll);
+            document.getElementById('overlayTaker').addEventListener('change', updateAll);
+
+            updateAll();
+        }
+
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
