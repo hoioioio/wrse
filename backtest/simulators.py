@@ -6,6 +6,33 @@ import pandas as pd
 from wrse.execution.models import exec_price, fee_cost, funding_pnl_per_bar, apply_slip
 
 
+def _risk_scale_from_state(
+    *,
+    capital: float,
+    peak: float,
+    vol_ratio: float | None,
+    enable_vol_targeting: bool,
+    vol_floor: float,
+    vol_cap: float,
+    vol_power: float,
+    dd_th1: float,
+    dd_th2: float,
+    dd_scale1: float,
+    dd_scale2: float,
+) -> float:
+    scale = 1.0
+    if enable_vol_targeting and vol_ratio is not None and np.isfinite(float(vol_ratio)) and float(vol_ratio) > 0:
+        vr = float(np.clip(float(vol_ratio), float(vol_floor), float(vol_cap)))
+        scale *= float(vr) ** (-float(vol_power))
+    if peak > 0:
+        dd = float((float(peak) - float(capital)) / float(peak))
+        if dd >= float(dd_th2):
+            scale *= float(dd_scale2)
+        elif dd >= float(dd_th1):
+            scale *= float(dd_scale1)
+    return float(scale)
+
+
 def simulate_v2xa(
     df_dict: dict[str, pd.DataFrame],
     year: int,
@@ -23,8 +50,19 @@ def simulate_v2xa(
     portfolio_slots: int = 5,
     risk_per_trade: float = 0.0125,
     base_size_mult: float = 0.3,
+    leverage_mult: float = 1.0,
+    notional_cap: float = 0.0,
+    enable_vol_targeting: bool = False,
+    vol_ratio_floor: float = 0.8,
+    vol_ratio_cap: float = 2.0,
+    vol_ratio_power: float = 1.0,
+    dd_threshold_1: float = 0.05,
+    dd_threshold_2: float = 0.10,
+    dd_scale_1: float = 0.7,
+    dd_scale_2: float = 0.4,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     capital = 100000.0
+    peak = 100000.0
     positions: dict[str, dict] = {}
     trades = []
     equity = []
@@ -119,6 +157,9 @@ def simulate_v2xa(
         for sym in closed:
             del positions[sym]
 
+        if capital > peak:
+            peak = float(capital)
+
         slots = int(portfolio_slots) - len(positions)
         if slots > 0:
             cands = []
@@ -133,6 +174,8 @@ def simulate_v2xa(
                 row = df.loc[t]
                 prev = df.loc[prev_t]
                 if float(row["vol_ratio"]) < 0.8:
+                    continue
+                if float(row.get("adx", 0.0)) < float(fund_params.get("adx_min", 0.0)):
                     continue
                 if abs(float(row.get("funding_rate", 0.0))) > float(fund_params.get("fund_abs_max", 0.00025)):
                     continue
@@ -161,7 +204,20 @@ def simulate_v2xa(
 
             cands.sort(reverse=True, key=lambda x: x[0])
             for _, sym, side, px, px_h, px_l, s, row in cands[:slots]:
-                risk = capital * float(risk_per_trade)
+                scale = _risk_scale_from_state(
+                    capital=float(capital),
+                    peak=float(peak),
+                    vol_ratio=float(row.get("vol_ratio", np.nan)),
+                    enable_vol_targeting=bool(enable_vol_targeting),
+                    vol_floor=float(vol_ratio_floor),
+                    vol_cap=float(vol_ratio_cap),
+                    vol_power=float(vol_ratio_power),
+                    dd_th1=float(dd_threshold_1),
+                    dd_th2=float(dd_threshold_2),
+                    dd_scale1=float(dd_scale_1),
+                    dd_scale2=float(dd_scale_2),
+                )
+                risk = capital * float(risk_per_trade) * float(scale) * float(leverage_mult)
                 base_usd = (risk / float(sl_pct)) * float(base_size_mult)
                 mult = 1.0
                 if float(size_k) > 0:
@@ -169,6 +225,8 @@ def simulate_v2xa(
                     mult = 1.0 + align * float(size_k) * min(2.0, abs(float(s)))
                     mult = float(np.clip(mult, float(min_mult), float(max_mult)))
                 pos_usd = base_usd * mult
+                if float(notional_cap) > 0:
+                    pos_usd = float(min(float(pos_usd), float(notional_cap)))
                 fill_px, fee_r, ok = exec_price(side, px, px_h, px_l, row.to_dict(), slip_bps, exec_mode, maker_fee_rate, taker_fee_rate)
                 if not ok:
                     continue
@@ -197,8 +255,19 @@ def simulate_shockscore(
     exec_mode: str,
     portfolio_slots: int = 5,
     risk_per_trade: float = 0.0125,
+    leverage_mult: float = 1.0,
+    notional_cap: float = 0.0,
+    enable_vol_targeting: bool = False,
+    vol_ratio_floor: float = 0.8,
+    vol_ratio_cap: float = 2.0,
+    vol_ratio_power: float = 1.0,
+    dd_threshold_1: float = 0.05,
+    dd_threshold_2: float = 0.10,
+    dd_scale_1: float = 0.7,
+    dd_scale_2: float = 0.4,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     capital = 100000.0
+    peak = 100000.0
     positions: dict[str, dict] = {}
     trades = []
     equity = []
@@ -269,6 +338,9 @@ def simulate_shockscore(
         for sym in closed:
             del positions[sym]
 
+        if capital > peak:
+            peak = float(capital)
+
         slots = int(portfolio_slots) - len(positions)
         if slots > 0:
             cands = []
@@ -290,10 +362,25 @@ def simulate_shockscore(
 
             cands.sort(reverse=True, key=lambda x: x[0])
             for _, sym, side, px, px_h, px_l, s, row in cands[:slots]:
-                risk = capital * float(risk_per_trade)
+                scale = _risk_scale_from_state(
+                    capital=float(capital),
+                    peak=float(peak),
+                    vol_ratio=float(row.get("vol_ratio", np.nan)),
+                    enable_vol_targeting=bool(enable_vol_targeting),
+                    vol_floor=float(vol_ratio_floor),
+                    vol_cap=float(vol_ratio_cap),
+                    vol_power=float(vol_ratio_power),
+                    dd_th1=float(dd_threshold_1),
+                    dd_th2=float(dd_threshold_2),
+                    dd_scale1=float(dd_scale_1),
+                    dd_scale2=float(dd_scale_2),
+                )
+                risk = capital * float(risk_per_trade) * float(scale) * float(leverage_mult)
                 base_usd = risk / float(sl_pct)
                 mult = min(float(max_mult), max(0.2, abs(float(s)) ** float(size_pow)))
                 pos_usd = base_usd * mult
+                if float(notional_cap) > 0:
+                    pos_usd = float(min(float(pos_usd), float(notional_cap)))
                 fill_px, fee_r, ok = exec_price(side, px, px_h, px_l, row.to_dict(), slip_bps, exec_mode, maker_fee_rate, taker_fee_rate)
                 if not ok:
                     continue

@@ -28,6 +28,7 @@ This project is a **crypto futures quantitative research and backtesting engine*
 
 - **Core Goal**: Build an engine that translates theoretical research hypotheses into a repeatable, institutional-grade pipeline: `Data` → `Hypothesis` → `OOS Validation` → `Execution-aware Simulation` → `Reporting`.
 - **Output Artifacts**: Live GitHub Pages dashboard (`docs/`), reproducible CLI benchmarking, and automated PNG/JSON tear sheets.
+- **Related Analytics (Dune)**: [LST/LRT Monitor – stETH (Ethereum)](https://dune.com/hoin/lst-lrt-monitor-steth-ethereum) (may require login if Cloudflare blocks anonymous access).
 
 ## 2. Problem Statement 🚨
 
@@ -88,10 +89,10 @@ Interpretation note:
 
 | Metric                 | AB Hybrid (Execution-Aware) | Taker-only (Pessimistic Penalty) |
 | :--------------------- | :-------------------------: | :------------------------------: |
-| **Total Return**       |         **+109.45%**        |              +95.88%             |
-| **Annualized (CAGR)**  |          **20.35%**         |              18.34%              |
-| **Max Drawdown (MDD)** |         **-13.08%**         |              -14.38%             |
-| **Sharpe Ratio**       |           **0.65**          |               0.59               |
+| **Total Return**       |         **+55.74%**         |              +43.10%             |
+| **Annualized (CAGR)**  |          **11.74%**         |               9.39%              |
+| **Max Drawdown (MDD)** |         **-11.99%**         |              -12.73%             |
+| **Sharpe Ratio**       |           **0.78**          |               0.64               |
 | **Trading Days**       |          1,457 Days         |            1,457 Days            |
 
 ![Strategy Equity vs Bitcoin Benchmark](docs/assets_public/equity_vs_btc_log.png)
@@ -100,10 +101,10 @@ Interpretation note:
 
 |    📅 Test Year    | OOS Return (AB) | MDD (AB) | Sharpe Ratio (AB/Taker) | Ensemble Weight (Locked) |
 | :----------------: | :-------------: | :------: | :---------------------: | :----------------------: |
-| **2021** (Split 1) |      +8.67%     |  -13.08% |       0.55 / 0.40       |    0.5 (*Train: 2020*)   |
-| **2022** (Split 2) |      -0.26%     |  -11.76% |       0.03 / -0.19      | 0.3 (*Train: 2020-2021*) |
-| **2023** (Split 3) |     +79.92%     |  -11.17% |       1.11 / 1.08       | 0.7 (*Train: 2020-2022*) |
-| **2024** (Split 4) |      +7.41%     |  -2.24%  |       1.34 / 1.02       | 0.3 (*Train: 2020-2023*) |
+| **2021** (Split 1) |      +9.80%     |  -11.99% |       0.61 / 0.47       |    0.5 (*Train: 2020*)   |
+| **2022** (Split 2) |      +0.56%     |  -10.81% |       0.11 / -0.15      | 0.3 (*Train: 2020-2021*) |
+| **2023** (Split 3) |     +28.39%     |  -9.59%  |       1.19 / 1.10       | 0.7 (*Train: 2020-2022*) |
+| **2024** (Split 4) |      +9.86%     |  -2.88%  |       1.38 / 1.08       | 0.3 (*Train: 2020-2023*) |
 
 > 🔍 **Regime Analysis**: In the 2022 deleveraging cycle, entries were aggressively suppressed under funding/volatility chaos, stalling growth while containing drawdowns. In the directional trends of 2023, the trend component dominated and drove most of the upside.
 
@@ -111,7 +112,9 @@ Interpretation note:
 
 ## 8. Engine Architecture 🧩
 
-*(Use “Key Files” below to jump directly to the source code)*
+
+Optional native acceleration:
+- A Rust port of the execution pricing logic is included under `wrse_rust/` (optional). The Python implementation is the default fallback.
 
 ```text
 📁 C:\wrse\
@@ -130,8 +133,10 @@ Interpretation note:
  ├── 📁 config/
  │    └── strategy_params.example.toml # Environment Constraints
  ├── 📁 docs/                      # Interactive HTML Dashboard
+ ├── 📁 wrse_rust/                 # (Optional) Rust port of execution logic
  ├── cli.py                     # Command-line Execution Interface
  ├── report.py                  # Graphical tear-sheet & JSON generator
+ ├── verify_portfolio.py        # Output consistency checker
  └── requirements.txt
 ```
 
@@ -143,7 +148,7 @@ Interpretation note:
 - Metrics & yearly tables: [backtest/metrics.py](backtest/metrics.py)
 - Execution model (maker→taker): [execution/models.py](execution/models.py)
 - Config loader: [utils/config.py](utils/config.py)
-- Example config: [config/strategy\_params.example.toml](config/strategy_params.example.toml)
+- Example config: [config/strategy_params.example.toml](config/strategy_params.example.toml)
 - Report exporter (PNG/JSON): [report.py](report.py)
 
 ## 9. Live Trading Results 🌐
@@ -168,8 +173,17 @@ The WRSE Quant Engine demonstrates a mature approach to crypto-derivatives syste
 ### 🖥️ Quick Reproduce
 
 ```bash
+cd C:\wrse
 pip install -r requirements.txt
 python cli.py wfo --config config/strategy_params.example.toml --write_csv ./outputs
 python report.py --config config/strategy_params.example.toml --public
 python verify_portfolio.py
+```
+
+Optional (Rust extension):
+
+```bash
+cd wrse_rust
+pip install maturin
+maturin develop --release
 ```

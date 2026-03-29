@@ -30,3 +30,7 @@ c:/alpha_cache/
 local*.toml
 outputs/
 *.log
+docs/cv.html
+docs/portfolio_one_pager.html
+docs/keyrock_packet.html
+docs/*.pdf

@@ -278,28 +278,28 @@
         Chart.defaults.font.family = "'Inter', sans-serif";
         const hardcoded = {
             splits: [
-                { train: [2020], test: 2021, AB_return_pct: 8.67, AB_mdd_pct: -13.08, AB_sharpe: 0.5469, AB_taker_sharpe: 0.3983, best_w: 0.5 },
-                { train: [2020, 2021], test: 2022, AB_return_pct: -0.26, AB_mdd_pct: -11.76, AB_sharpe: 0.0294, AB_taker_sharpe: -0.1931, best_w: 0.3 },
-                { train: [2020, 2021, 2022], test: 2023, AB_return_pct: 79.92, AB_mdd_pct: -11.17, AB_sharpe: 1.1083, AB_taker_sharpe: 1.0828, best_w: 0.7 },
-                { train: [2020, 2021, 2022, 2023], test: 2024, AB_return_pct: 7.41, AB_mdd_pct: -2.24, AB_sharpe: 1.3403, AB_taker_sharpe: 1.0212, best_w: 0.3 }
+                { train: [2020], test: 2021, AB_return_pct: 9.80, AB_mdd_pct: -11.99, AB_sharpe: 0.6127, AB_taker_sharpe: 0.4650, best_w: 0.5 },
+                { train: [2020, 2021], test: 2022, AB_return_pct: 0.56, AB_mdd_pct: -10.81, AB_sharpe: 0.1063, AB_taker_sharpe: -0.1549, best_w: 0.3 },
+                { train: [2020, 2021, 2022], test: 2023, AB_return_pct: 28.39, AB_mdd_pct: -9.59, AB_sharpe: 1.1908, AB_taker_sharpe: 1.0993, best_w: 0.7 },
+                { train: [2020, 2021, 2022, 2023], test: 2024, AB_return_pct: 9.86, AB_mdd_pct: -2.88, AB_sharpe: 1.3819, AB_taker_sharpe: 1.0804, best_w: 0.3 }
             ],
             yearly_ab: [
-                { year: 2021, total_return_pct: 8.67, mdd_pct: -13.08, sharpe: 0.55 },
-                { year: 2022, total_return_pct: -0.26, mdd_pct: -11.76, sharpe: 0.03 },
-                { year: 2023, total_return_pct: 79.92, mdd_pct: -11.17, sharpe: 1.11 },
-                { year: 2024, total_return_pct: 7.41, mdd_pct: -2.24, sharpe: 1.34 }
+                { year: 2021, total_return_pct: 9.80, mdd_pct: -11.99, sharpe: 0.61 },
+                { year: 2022, total_return_pct: 0.56, mdd_pct: -10.81, sharpe: 0.11 },
+                { year: 2023, total_return_pct: 28.39, mdd_pct: -9.59, sharpe: 1.19 },
+                { year: 2024, total_return_pct: 9.86, mdd_pct: -2.88, sharpe: 1.38 }
             ],
             yearly_ab_taker: [
-                { year: 2021, total_return_pct: 5.74, mdd_pct: -14.38, sharpe: 0.40 },
-                { year: 2022, total_return_pct: -2.67, mdd_pct: -12.84, sharpe: -0.19 },
-                { year: 2023, total_return_pct: 80.23, mdd_pct: -12.46, sharpe: 1.08 },
-                { year: 2024, total_return_pct: 5.61, mdd_pct: -3.12, sharpe: 1.02 }
+                { year: 2021, total_return_pct: 6.90, mdd_pct: -12.73, sharpe: 0.47 },
+                { year: 2022, total_return_pct: -1.89, mdd_pct: -12.26, sharpe: -0.15 },
+                { year: 2023, total_return_pct: 26.55, mdd_pct: -10.61, sharpe: 1.10 },
+                { year: 2024, total_return_pct: 7.82, mdd_pct: -3.86, sharpe: 1.08 }
             ]
         };
 
         const fallbackSummary = {
-            ab: { total: 1.0945, cagr: 0.2035, mdd: -0.1308, sharpe: 0.6493 },
-            taker: { total: 0.9588, cagr: 0.1834, mdd: -0.1438, sharpe: 0.5885 }
+            ab: { total: 0.5574, cagr: 0.1174, mdd: -0.1199, sharpe: 0.7802 },
+            taker: { total: 0.4310, cagr: 0.0939, mdd: -0.1273, sharpe: 0.6369 }
         };
 
         const state = {

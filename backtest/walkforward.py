@@ -43,6 +43,16 @@ def _simulate_v2xa_years(
     exec_mode: str,
     portfolio_slots: int,
     risk_per_trade: float,
+    leverage_mult: float,
+    notional_cap: float,
+    enable_vol_targeting: bool,
+    vol_ratio_floor: float,
+    vol_ratio_cap: float,
+    vol_ratio_power: float,
+    dd_threshold_1: float,
+    dd_threshold_2: float,
+    dd_scale_1: float,
+    dd_scale_2: float,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     trades_all = []
     eq_all = []
@@ -64,6 +74,16 @@ def _simulate_v2xa_years(
             exec_mode=str(exec_mode),
             portfolio_slots=int(portfolio_slots),
             risk_per_trade=float(risk_per_trade),
+            leverage_mult=float(leverage_mult),
+            notional_cap=float(notional_cap),
+            enable_vol_targeting=bool(enable_vol_targeting),
+            vol_ratio_floor=float(vol_ratio_floor),
+            vol_ratio_cap=float(vol_ratio_cap),
+            vol_ratio_power=float(vol_ratio_power),
+            dd_threshold_1=float(dd_threshold_1),
+            dd_threshold_2=float(dd_threshold_2),
+            dd_scale_1=float(dd_scale_1),
+            dd_scale_2=float(dd_scale_2),
         )
         if tr is not None and not tr.empty:
             trades_all.append(tr)
@@ -88,6 +108,16 @@ def _simulate_shock_years(
     exec_mode: str,
     portfolio_slots: int,
     risk_per_trade: float,
+    leverage_mult: float,
+    notional_cap: float,
+    enable_vol_targeting: bool,
+    vol_ratio_floor: float,
+    vol_ratio_cap: float,
+    vol_ratio_power: float,
+    dd_threshold_1: float,
+    dd_threshold_2: float,
+    dd_scale_1: float,
+    dd_scale_2: float,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     trades_all = []
     eq_all = []
@@ -107,6 +137,16 @@ def _simulate_shock_years(
             exec_mode=str(exec_mode),
             portfolio_slots=int(portfolio_slots),
             risk_per_trade=float(risk_per_trade),
+            leverage_mult=float(leverage_mult),
+            notional_cap=float(notional_cap),
+            enable_vol_targeting=bool(enable_vol_targeting),
+            vol_ratio_floor=float(vol_ratio_floor),
+            vol_ratio_cap=float(vol_ratio_cap),
+            vol_ratio_power=float(vol_ratio_power),
+            dd_threshold_1=float(dd_threshold_1),
+            dd_threshold_2=float(dd_threshold_2),
+            dd_scale_1=float(dd_scale_1),
+            dd_scale_2=float(dd_scale_2),
         )
         if tr is not None and not tr.empty:
             trades_all.append(tr)
@@ -143,6 +183,17 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
     maker_fee_rate = float(exec_cfg["maker_fee_rate"])
     slip_bps = float(exec_cfg["slippage_bps"])
     exec_mode = str(exec_cfg["exec_mode"])
+
+    enable_vol_targeting = bool(risk.get("enable_vol_targeting", False))
+    vol_ratio_floor = float(risk.get("vol_ratio_floor", 0.8))
+    vol_ratio_cap = float(risk.get("vol_ratio_cap", 1.6))
+    vol_ratio_power = float(risk.get("vol_ratio_power", 1.0))
+    dd_threshold_1 = float(risk.get("dd_threshold_1", 0.05))
+    dd_threshold_2 = float(risk.get("dd_threshold_2", 0.10))
+    dd_scale_1 = float(risk.get("dd_scale_1", 0.7))
+    dd_scale_2 = float(risk.get("dd_scale_2", 0.4))
+    leverage_mult = float(risk.get("leverage_mult", 1.0))
+    notional_cap = float(risk.get("notional_cap", 0.0))
 
     eq_ab = []
     eq_ab_taker = []
@@ -184,6 +235,7 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
                     "fund_z_max": float(rng.choice(fund_z_max)),
                     "pyr_trig": float(rng.choice(pyr)),
                     "avoid_th": float(rng.choice([0.08, 0.10, 0.12])),
+                    "adx_min": float(rng.choice([0.0, 12.0, 15.0, 18.0])),
                     "exit_on_flip": True,
                     "size_k": float(rng.choice(size_k_space)),
                 }
@@ -203,6 +255,16 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
                     exec_mode=exec_mode,
                     portfolio_slots=int(risk["portfolio_slots"]),
                     risk_per_trade=float(risk["risk_per_trade"]),
+                    leverage_mult=leverage_mult,
+                    notional_cap=notional_cap,
+                    enable_vol_targeting=enable_vol_targeting,
+                    vol_ratio_floor=vol_ratio_floor,
+                    vol_ratio_cap=vol_ratio_cap,
+                    vol_ratio_power=vol_ratio_power,
+                    dd_threshold_1=dd_threshold_1,
+                    dd_threshold_2=dd_threshold_2,
+                    dd_scale_1=dd_scale_1,
+                    dd_scale_2=dd_scale_2,
                 )
                 s = _score_for_search(tr, eq)
                 if s is None:
@@ -217,6 +279,7 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
             "fund_z_max": 1.0,
             "pyr_trig": 0.015,
             "avoid_th": 0.10,
+            "adx_min": 12.0,
             "exit_on_flip": True,
             "size_k": 0.25,
         }
@@ -243,6 +306,16 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
             exec_mode=exec_mode,
             portfolio_slots=int(risk["portfolio_slots"]),
             risk_per_trade=float(risk["risk_per_trade"]),
+            leverage_mult=leverage_mult,
+            notional_cap=notional_cap,
+            enable_vol_targeting=enable_vol_targeting,
+            vol_ratio_floor=vol_ratio_floor,
+            vol_ratio_cap=vol_ratio_cap,
+            vol_ratio_power=vol_ratio_power,
+            dd_threshold_1=dd_threshold_1,
+            dd_threshold_2=dd_threshold_2,
+            dd_scale_1=dd_scale_1,
+            dd_scale_2=dd_scale_2,
         )
         tr_s_in, eq_s_in = _simulate_shock_years(
             df_dict,
@@ -258,6 +331,16 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
             exec_mode=exec_mode,
             portfolio_slots=int(risk["portfolio_slots"]),
             risk_per_trade=float(risk["risk_per_trade"]),
+            leverage_mult=leverage_mult,
+            notional_cap=notional_cap,
+            enable_vol_targeting=enable_vol_targeting,
+            vol_ratio_floor=vol_ratio_floor,
+            vol_ratio_cap=vol_ratio_cap,
+            vol_ratio_power=vol_ratio_power,
+            dd_threshold_1=dd_threshold_1,
+            dd_threshold_2=dd_threshold_2,
+            dd_scale_1=dd_scale_1,
+            dd_scale_2=dd_scale_2,
         )
 
         best_w = float(weights[0])
@@ -289,6 +372,16 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
             exec_mode=exec_mode,
             portfolio_slots=int(risk["portfolio_slots"]),
             risk_per_trade=float(risk["risk_per_trade"]),
+            leverage_mult=leverage_mult,
+            notional_cap=notional_cap,
+            enable_vol_targeting=enable_vol_targeting,
+            vol_ratio_floor=vol_ratio_floor,
+            vol_ratio_cap=vol_ratio_cap,
+            vol_ratio_power=vol_ratio_power,
+            dd_threshold_1=dd_threshold_1,
+            dd_threshold_2=dd_threshold_2,
+            dd_scale_1=dd_scale_1,
+            dd_scale_2=dd_scale_2,
         )
         tr_s, eq_s = simulate_shockscore(
             df_dict,
@@ -304,6 +397,16 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
             exec_mode=exec_mode,
             portfolio_slots=int(risk["portfolio_slots"]),
             risk_per_trade=float(risk["risk_per_trade"]),
+            leverage_mult=leverage_mult,
+            notional_cap=notional_cap,
+            enable_vol_targeting=enable_vol_targeting,
+            vol_ratio_floor=vol_ratio_floor,
+            vol_ratio_cap=vol_ratio_cap,
+            vol_ratio_power=vol_ratio_power,
+            dd_threshold_1=dd_threshold_1,
+            dd_threshold_2=dd_threshold_2,
+            dd_scale_1=dd_scale_1,
+            dd_scale_2=dd_scale_2,
         )
 
         eq_combo_ab = combine_equity(eq_b, eq_s, best_w)
@@ -326,6 +429,16 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
             exec_mode="taker",
             portfolio_slots=int(risk["portfolio_slots"]),
             risk_per_trade=float(risk["risk_per_trade"]),
+            leverage_mult=leverage_mult,
+            notional_cap=notional_cap,
+            enable_vol_targeting=enable_vol_targeting,
+            vol_ratio_floor=vol_ratio_floor,
+            vol_ratio_cap=vol_ratio_cap,
+            vol_ratio_power=vol_ratio_power,
+            dd_threshold_1=dd_threshold_1,
+            dd_threshold_2=dd_threshold_2,
+            dd_scale_1=dd_scale_1,
+            dd_scale_2=dd_scale_2,
         )
         tr_s_t, eq_s_t = simulate_shockscore(
             df_dict,
@@ -341,6 +454,16 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
             exec_mode="taker",
             portfolio_slots=int(risk["portfolio_slots"]),
             risk_per_trade=float(risk["risk_per_trade"]),
+            leverage_mult=leverage_mult,
+            notional_cap=notional_cap,
+            enable_vol_targeting=enable_vol_targeting,
+            vol_ratio_floor=vol_ratio_floor,
+            vol_ratio_cap=vol_ratio_cap,
+            vol_ratio_power=vol_ratio_power,
+            dd_threshold_1=dd_threshold_1,
+            dd_threshold_2=dd_threshold_2,
+            dd_scale_1=dd_scale_1,
+            dd_scale_2=dd_scale_2,
         )
         eq_combo_ab_t = combine_equity(eq_b_t, eq_s_t, best_w)
         eq_combo_ab_t, last_ab_t = link_equity(eq_combo_ab_t, last_ab_t)

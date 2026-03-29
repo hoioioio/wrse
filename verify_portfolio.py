@@ -23,15 +23,24 @@ def _equity_stats(equity_rows):
     return {"days": int(len(vals)), "total": total, "mdd": mdd, "sharpe": sharpe}
 
 
-def main() -> int:
-    base = Path(r"c:\wrse\docs\assets_public")
-    eq_ab = _load_json(base / "equity_ab.json")
-    eq_t = _load_json(base / "equity_ab_taker.json")
+def compute_portfolio_summary(assets_dir: Path) -> dict:
+    eq_ab = _load_json(assets_dir / "equity_ab.json")
+    eq_t = _load_json(assets_dir / "equity_ab_taker.json")
 
+    out = {}
     for name, eq in [("AB", eq_ab), ("TAKER", eq_t)]:
         s = _equity_stats(eq)
         t0 = eq[0]["time"] if eq else None
         t1 = eq[-1]["time"] if eq else None
+        out[name] = {"range": [t0, t1], **s}
+    return out
+
+
+def main() -> int:
+    base = Path(__file__).resolve().parent / "docs" / "assets_public"
+    summary = compute_portfolio_summary(base)
+    for name, s in summary.items():
+        t0, t1 = s.get("range", [None, None])
         print(name, "range", t0, "→", t1, "days", s.get("days"))
         print(name, "total", f"{s.get('total', 0.0)*100:.2f}%", "mdd", f"{s.get('mdd', 0.0)*100:.2f}%", "sharpe", f"{s.get('sharpe', 0.0):.4f}")
 

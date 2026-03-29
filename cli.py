@@ -10,6 +10,7 @@ if str(_PARENT) not in sys.path:
 
 from wrse.utils.config import Config
 from wrse.backtest.walkforward import run_wfo_fast
+from wrse.backtest.compare import run_compare
 
 
 def _fmt_pct(x):
@@ -70,6 +71,29 @@ def cmd_wfo(args) -> int:
     return 0
 
 
+def cmd_compare(args) -> int:
+    cfg = Config.load(args.config).raw
+    res = run_compare(cfg, leverage_mult_off=float(args.leverage_off), leverage_mult_on=float(args.leverage_on))
+    tbl = res.get("table")
+    if tbl is None or tbl.empty:
+        print("COMPARE_EMPTY")
+        return 1
+    out = tbl.copy()
+    for c in ["AB_total_return", "AB_annual_return", "AB_mdd", "T_total_return", "T_annual_return", "T_mdd"]:
+        out[c] = out[c].apply(lambda x: _fmt_pct(x) if np.isfinite(float(x)) else "nan")
+    for c in ["AB_sharpe", "T_sharpe"]:
+        out[c] = out[c].apply(lambda x: _fmt_f(x) if np.isfinite(float(x)) else "nan")
+
+    print("COMPARE_TABLE")
+    print(out.to_string(index=False))
+
+    if args.write_csv:
+        out_dir = Path(args.write_csv)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        tbl.to_csv(out_dir / "compare_table.csv", index=False)
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(prog="wrse")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -78,6 +102,13 @@ def main() -> int:
     ap_wfo.add_argument("--config", type=str, required=True)
     ap_wfo.add_argument("--write_csv", type=str, default="")
     ap_wfo.set_defaults(func=cmd_wfo)
+
+    ap_cmp = sub.add_parser("compare", help="Compare WFO vs FULLFIT, leverage on/off")
+    ap_cmp.add_argument("--config", type=str, required=True)
+    ap_cmp.add_argument("--leverage_off", type=float, default=1.0)
+    ap_cmp.add_argument("--leverage_on", type=float, default=3.0)
+    ap_cmp.add_argument("--write_csv", type=str, default="")
+    ap_cmp.set_defaults(func=cmd_compare)
 
     args = ap.parse_args()
     return int(args.func(args))

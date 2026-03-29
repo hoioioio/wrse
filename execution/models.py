@@ -2,6 +2,16 @@ from __future__ import annotations
 
 import numpy as np
 
+_RUST_OK = False
+try:
+    from wrse_rust import exec_price_rust as _exec_price_rust
+    from wrse_rust import fee_cost_rust as _fee_cost_rust
+    from wrse_rust import funding_pnl_per_bar_rust as _funding_pnl_per_bar_rust
+
+    _RUST_OK = True
+except Exception:
+    _RUST_OK = False
+
 
 def apply_slip(price: float, side: str, slip_bps: float) -> float:
     slip = float(slip_bps) / 10000.0
@@ -11,10 +21,14 @@ def apply_slip(price: float, side: str, slip_bps: float) -> float:
 
 
 def fee_cost(notional: float, fee_rate: float) -> float:
+    if _RUST_OK:
+        return float(_fee_cost_rust(float(notional), float(fee_rate)))
     return abs(float(notional)) * float(fee_rate)
 
 
 def funding_pnl_per_bar(side: str, funding_rate: float, notional: float, bar_hours: float = 4.0, funding_hours: float = 8.0) -> float:
+    if _RUST_OK:
+        return float(_funding_pnl_per_bar_rust(str(side), float(funding_rate), float(notional), float(bar_hours), float(funding_hours)))
     fr = float(funding_rate)
     mult = -1.0 if side == "buy" else 1.0
     return mult * fr * float(notional) * (float(bar_hours) / float(funding_hours))
@@ -53,6 +67,29 @@ def exec_price(
     maker_imb_mult: float = 2.0,
     shock_aggr_th: float = 0.12,
 ) -> tuple[float, float, bool]:
+    if _RUST_OK:
+        return _exec_price_rust(
+            str(side),
+            float(open_px),
+            float(bar_high),
+            float(bar_low),
+            float(row.get("shock_score", 0.0)),
+            float(row.get("close", 0.0)),
+            float(row.get("high", float(row.get("close", 0.0)))),
+            float(row.get("low", float(row.get("close", 0.0)))),
+            float(row.get("l2_spread_bps")) if row.get("l2_spread_bps", None) is not None else None,
+            float(row.get("l2_micro_dev_bps")) if row.get("l2_micro_dev_bps", None) is not None else None,
+            float(row.get("l2_imb")) if row.get("l2_imb", None) is not None else None,
+            float(slip_bps),
+            str(exec_mode),
+            float(maker_fee_rate),
+            float(taker_fee_rate),
+            float(maker_base_offset_bps),
+            float(maker_spread_mult),
+            float(maker_micro_mult),
+            float(maker_imb_mult),
+            float(shock_aggr_th),
+        )
     s = float(row.get("shock_score", 0.0))
     if abs(s) >= float(shock_aggr_th):
         px = apply_slip(open_px, side, slip_bps)
