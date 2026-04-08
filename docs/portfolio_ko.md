@@ -1,4 +1,4 @@
-# Remote Crypto Quant / Trader 포트폴리오 (WRSE)
+﻿# Remote Crypto Quant / Trader 포트폴리오 (WRSE)
 
 본 문서는 제출용 목차(1\~13)를 기준으로 구성되어 있으며, 필요 시 PDF로 변환해 제출하는 것을 전제로 합니다.
 
@@ -6,7 +6,7 @@
 
 - 대시보드: <https://hoioioio.github.io/WRSE-QUANT-ENGINE/>
 - 데이터 스키마/재현: [reproducibility.md](reproducibility.md)
-- GitHub: [레포지토리 루트](../)
+- GitHub: [레포지토리 루트](https://github.com/hoioioio/WRSE-QUANT-ENGINE)
 
 ## Executive Summary (1p)
 
@@ -436,3 +436,4 @@ python verify_portfolio.py
 부록(선택):
 
 - 지표 정의/산출 방식, 파라미터 테이블, 추가 그래프를 “Appendix”로 별도 확장 가능
+
