@@ -5,7 +5,7 @@ This document follows a submission-style structure. It is intended to be exporte
 Links:
 - Dashboard: https://hoioioio.github.io/WRSE-QUANT-ENGINE/
 - Data schema / reproducibility: [reproducibility.md](reproducibility.md)
-- GitHub: [Repository root](../)
+- GitHub: [Repository root](https://github.com/hoioioio/WRSE-QUANT-ENGINE)
 
 ## Executive Summary (1p)
 
@@ -121,10 +121,7 @@ Stress slices (examples):
 Distribution slice:
 - rolling 6-month return distribution computed from daily equity
 
-Supporting artifacts:
-- Equity vs BTC (log scale): [assets_public/equity_vs_btc_log.png](assets_public/equity_vs_btc_log.png)
-- WFO OOS Sharpe by year: [assets_public/wfo_oos_sharpe.png](assets_public/wfo_oos_sharpe.png)
-- Yearly returns / MDD summary: [assets_public/yearly_returns.png](assets_public/yearly_returns.png), [assets_public/yearly_mdd.png](assets_public/yearly_mdd.png)
+ Public figures (embedded):
 
 Figure 3-1. Equity vs BTC (log)
 

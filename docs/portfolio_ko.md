@@ -155,35 +155,31 @@ Market Data (OHLCV / funding / L2 summaries)
 
 - 일간 equity 기반 6개월 롤링 수익률 분포
 
-관련 산출물:
-
-- Equity vs BTC(로그): [assets\_public/equity\_vs\_btc\_log.png](assets_public/equity_vs_btc_log.png)
-- WFO OOS Sharpe(연도별): [assets\_public/wfo\_oos\_sharpe.png](assets_public/wfo_oos_sharpe.png)
-- 연도별 수익률/낙폭 요약: [assets\_public/yearly\_returns.png](assets_public/yearly_returns.png), [assets\_public/yearly\_mdd.png](assets_public/yearly_mdd.png)
+관련 산출물(공개):
 
 Figure 3-1. Equity vs BTC (log)
 
-!\[Figure 3-1]\(assets\_public/equity\_vs\_btc\_log.png null)
+![Figure 3-1](assets_public/equity_vs_btc_log.png)
 
 Figure 3-2. WFO OOS Sharpe by split year
 
-!\[Figure 3-2]\(assets\_public/wfo\_oos\_sharpe.png null)
+![Figure 3-2](assets_public/wfo_oos_sharpe.png)
 
 Figure 3-3. Yearly returns (OOS)
 
-!\[Figure 3-3]\(assets\_public/yearly\_returns.png null)
+![Figure 3-3](assets_public/yearly_returns.png)
 
 Figure 3-4. Yearly MDD (OOS)
 
-!\[Figure 3-4]\(assets\_public/yearly\_mdd.png null)
+![Figure 3-4](assets_public/yearly_mdd.png)
 
 ## 4. Strategy Research
 
-전략은 컴포넌트를 분리한 뒤, 전진 분석 구간에서 비중을 선택해 조합합니다.
+3장에서 도출한 시장 관찰과 가설을 바탕으로, 추세(Trend)와 충격(Shock) 컴포넌트를 분리 설계하여 전진 분석(Walk-forward) 구간에서 조합을 검증했습니다.
 
 전략 설명 템플릿(전략별 공통):
 
-- Strategy idea
+- Strategy idea & Hypothesis Link
 - Signal 정의(피처/필터)
 - Entry/Exit 규칙(포지션 방향 포함)
 - Position sizing / Risk control
@@ -191,19 +187,20 @@ Figure 3-4. Yearly MDD (OOS)
 
 ### 4.1 Trend 컴포넌트
 
-요약:
+요약 및 가설 연결:
 
-- cache timeframe을 내부에서 상위 타임프레임(4h)으로 리샘플링해 사용합니다.
-- 단기/중기 신호가 장기 기준선과 일치할 때만 진입합니다.
-- 변동성/ADX/펀딩/쇼크 조건 등으로 참여 구간을 제어합니다.
+- **Hypothesis Link**: 변동성 확장 초기의 추세를 포착하되(Observation 2), 펀딩비 과열 구간의 롱 스퀴즈 위험을 회피합니다(Observation 1).
+- **특징**: cache timeframe을 내부에서 상위 타임프레임(4h)으로 리샘플링해 노이즈를 줄입니다.
+- **Entry**: 단기/중기 신호가 장기 기준선(Baseline)과 일치할 때만 진입합니다.
+- **Filter**: 변동성/ADX 조건으로 횡보장 진입을 차단하고, 펀딩비 상한 필터로 과열 구간의 순방향 진입을 차단합니다.
 
 ### 4.2 Shock 컴포넌트(ShockScore)
 
-요약:
+요약 및 가설 연결:
 
-- train 구간에서 점프 이벤트를 라벨링하고 Ridge 기반 signed classifier를 학습합니다.
-- test 구간에서는 재학습 없이 `shock_score`만 산출합니다.
-- 진입 회피/디리스크/실행 보수화에 사용합니다.
+- **Hypothesis Link**: 청산 연쇄로 인한 비정상적 변동성/충격 구간에서는 실행 마찰이 극대화되므로 진입을 포기하고 디리스킹(De-risking)해야 합니다(Observation 2 & 3).
+- **학습**: train 구간에서 과거 가격 점프(Shock) 이벤트를 라벨링하고 Ridge 기반 signed classifier를 학습합니다.
+- **적용**: test(OOS) 구간에서는 재학습 없이 `shock_score`만 산출하며, 임계치를 넘으면 Trend 신호가 발생해도 진입을 무시(Veto)하거나 보수적으로 관리합니다.
 
 ### 4.3 조합(Trend + Shock)
 
@@ -439,4 +436,3 @@ python verify_portfolio.py
 부록(선택):
 
 - 지표 정의/산출 방식, 파라미터 테이블, 추가 그래프를 “Appendix”로 별도 확장 가능
-
