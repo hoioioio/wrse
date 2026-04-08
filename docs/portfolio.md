@@ -96,16 +96,23 @@ Assumptions and bias controls:
 - No look-ahead: parameters and weights are selected on train windows only and locked on test (OOS).
 - Universe survivorship (listings/delistings) is treated as a data-prep concern in the public version.
 
-### 3.2 Research Focus (Crypto Futures)
+### 3.2 Research Focus & Hypotheses
 
-Market-research topics emphasized in this portfolio:
-- Volatility / regime shifts
-- Funding rate behavior and overheating filters
-- Liquidity / execution friction sensitivity
-- Return and drawdown distributions (rolling windows)
-- Cross-asset co-movement risk (portfolio perspective)
+Crypto futures (e.g., Binance Perps) exhibit distinct microstructure characteristics driven by retail leverage and 24/7 liquidation engines. This portfolio bases its system design on three core data-driven hypotheses.
 
-Public report focuses on event-style stress slices and distribution-style summaries computed from OOS equity.
+**Observation 1: Retail Leverage and Funding Rate Imbalances**
+- **Data Observation**: Periods of extreme positive funding rates indicate an overcrowded long leverage consensus.
+- **Hypothesis**: When momentum decelerates during extreme funding rate premiums, the probability of a long-squeeze (cascade liquidation) increases significantly. Trend-following entries should be suppressed here due to negative expected value.
+
+**Observation 2: Liquidation Cascades and Volatility Clustering**
+- **Data Observation**: Forced liquidations trigger asymmetric volatility spikes, creating clustered regimes of high and low volatility.
+- **Hypothesis**: The initial transition from a low-volatility regime to a high-volatility regime exhibits strong momentum persistence. However, entering during peak "shock" volatility leads to adverse execution costs that destroy theoretical edge.
+
+**Observation 3: Maker-Taker Asymmetry and Execution Friction**
+- **Data Observation**: Order book spreads and liquidity imbalances deteriorate sharply during momentum spikes.
+- **Hypothesis**: Maker-only backtests suffer from severe adverse selection during fast markets. Strategies must assume Taker execution (or Maker-to-Taker fallback) to reflect realistic out-of-sample (OOS) expectancy.
+
+Public report focuses on event-style stress slices and distribution-style summaries computed from OOS equity based on these hypotheses.
 
 Stress slices (examples):
 - LUNA deleveraging (2022-05)
@@ -137,10 +144,10 @@ Figure 3-4. Yearly MDD (OOS)
 
 ## 4. Strategy Research
 
-Strategy components are separated and then combined via walk-forward weight selection.
+Based on the hypotheses derived in Section 3, the system separates logic into a Trend-following component and a Shock-avoidance component, which are then combined via walk-forward weight selection.
 
 Strategy template (per strategy):
-- Strategy idea
+- Strategy idea & Hypothesis Link
 - Signal definition (features/filters)
 - Entry/Exit rules
 - Position sizing / risk control
@@ -148,17 +155,19 @@ Strategy template (per strategy):
 
 ### 4.1 Trend component
 
-Summary:
-- Uses higher timeframe bars internally (resampled to 4h from cache timeframe).
-- Enters when short/mid-term reversal aligns with a longer-term baseline direction.
-- Uses filters (volatility/ADX/funding/shock) to control participation.
+Summary and Hypothesis Link:
+- **Hypothesis Link**: Captures momentum during volatility expansion (Observation 2) while actively avoiding entries during funding rate extremes (Observation 1).
+- **Features**: Uses higher timeframe bars internally (resampled to 4h from cache timeframe) to reduce noise.
+- **Entry**: Enters when short/mid-term reversal aligns with a longer-term baseline direction.
+- **Filters**: Uses filters (volatility/ADX) to avoid range-bound markets, and funding rate caps to control participation in overcrowded regimes.
 
 ### 4.2 Shock component (ShockScore)
 
-Summary:
-- Labels jump events and trains a Ridge-based signed classifier on the train window.
-- On the test window, it only infers `shock_score` (no re-training).
-- Used for entry avoidance, de-risking, and execution conservatism.
+Summary and Hypothesis Link:
+- **Hypothesis Link**: Extreme jump events and liquidity vacuums destroy maker-execution value. The system must recognize these states and step aside (Observations 2 & 3).
+- **Training**: Labels jump events and trains a Ridge-based signed classifier on the train window.
+- **Inference**: On the test window, it only infers `shock_score` (no re-training).
+- **Application**: Used for entry avoidance (vetoing Trend signals), de-risking, and execution conservatism when the score exceeds threshold.
 
 ### 4.3 Ensemble (Trend + Shock)
 

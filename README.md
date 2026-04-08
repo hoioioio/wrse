@@ -18,6 +18,15 @@ Notes:
 - Reproducible public artifacts (dashboard JSON + figures under `docs/assets_public/`)
 - Config-driven research workflow (TOML)
 
+## Research & Hypotheses
+
+The system design is grounded in crypto futures microstructure observations:
+
+- **Observation 1 (Funding Imbalance)**: Extreme positive funding rates indicate an overcrowded long leverage consensus.
+- **Hypothesis 1**: When momentum decelerates during these premiums, the probability of a cascade liquidation (long-squeeze) increases. Trend-following entries must be suppressed to maintain positive expected value.
+- **Observation 2 (Volatility Clustering)**: Liquidations trigger asymmetric volatility spikes and liquidity vacuums.
+- **Hypothesis 2**: While initial volatility expansions exhibit strong momentum persistence, entering during peak "shock" volatility leads to severe adverse selection. A Ridge-based jump-event classifier (ShockScore) is used to veto entries and preserve capital.
+
 ## Failure Cases (Typical)
 
 - Sideways / range-bound regimes
