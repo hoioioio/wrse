@@ -90,11 +90,11 @@ def calc_equity_metrics_ext(equity_df: pd.DataFrame, *, periods_per_year: int = 
     }
 
 
-def link_equity(eq: pd.DataFrame, last_cap: float) -> tuple[pd.DataFrame, float]:
+def link_equity(eq: pd.DataFrame, last_cap: float, *, base_cap: float = 100000.0) -> tuple[pd.DataFrame, float]:
     if eq is None or eq.empty:
         return eq, float(last_cap)
     out = eq.copy()
-    out["capital"] = out["capital"] - 100000.0 + float(last_cap)
+    out["capital"] = out["capital"] - float(base_cap) + float(last_cap)
     last = float(out["capital"].iloc[-1])
     return out, last
 

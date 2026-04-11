@@ -53,10 +53,12 @@ def _simulate_v2xa_years(
     dd_threshold_2: float,
     dd_scale_1: float,
     dd_scale_2: float,
+    initial_capital: float,
+    record_equity_every_bar: bool,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     trades_all = []
     eq_all = []
-    last = 100000.0
+    last = float(initial_capital)
     for y in [int(x) for x in years]:
         tr, eq = simulate_v2xa(
             df_dict,
@@ -84,11 +86,13 @@ def _simulate_v2xa_years(
             dd_threshold_2=float(dd_threshold_2),
             dd_scale_1=float(dd_scale_1),
             dd_scale_2=float(dd_scale_2),
+            initial_capital=float(initial_capital),
+            record_equity_every_bar=bool(record_equity_every_bar),
         )
         if tr is not None and not tr.empty:
             trades_all.append(tr)
         if eq is not None and not eq.empty:
-            eq, last = link_equity(eq, last)
+            eq, last = link_equity(eq, last, base_cap=float(initial_capital))
             eq_all.append(eq)
     return (pd.concat(trades_all) if trades_all else pd.DataFrame(), pd.concat(eq_all) if eq_all else pd.DataFrame())
 
@@ -118,10 +122,12 @@ def _simulate_shock_years(
     dd_threshold_2: float,
     dd_scale_1: float,
     dd_scale_2: float,
+    initial_capital: float,
+    record_equity_every_bar: bool,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     trades_all = []
     eq_all = []
-    last = 100000.0
+    last = float(initial_capital)
     for y in [int(x) for x in years]:
         tr, eq = simulate_shockscore(
             df_dict,
@@ -147,11 +153,13 @@ def _simulate_shock_years(
             dd_threshold_2=float(dd_threshold_2),
             dd_scale_1=float(dd_scale_1),
             dd_scale_2=float(dd_scale_2),
+            initial_capital=float(initial_capital),
+            record_equity_every_bar=bool(record_equity_every_bar),
         )
         if tr is not None and not tr.empty:
             trades_all.append(tr)
         if eq is not None and not eq.empty:
-            eq, last = link_equity(eq, last)
+            eq, last = link_equity(eq, last, base_cap=float(initial_capital))
             eq_all.append(eq)
     return (pd.concat(trades_all) if trades_all else pd.DataFrame(), pd.concat(eq_all) if eq_all else pd.DataFrame())
 
@@ -162,6 +170,7 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
     wf = cfg["walk_forward"]
     shock = cfg["shock_model"]
     risk = cfg["risk"]
+    prop = cfg.get("prop", {})
 
     spec = DataSpec(
         backtest_cache_dir=str(data["backtest_cache_dir"]),
@@ -194,12 +203,16 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
     dd_scale_2 = float(risk.get("dd_scale_2", 0.4))
     leverage_mult = float(risk.get("leverage_mult", 1.0))
     notional_cap = float(risk.get("notional_cap", 0.0))
+    initial_capital = float(prop.get("initial_capital", 100000.0))
+    record_equity_every_bar = bool(prop.get("record_equity_every_bar", False))
 
     eq_ab = []
     eq_ab_taker = []
-    last_ab = 100000.0
-    last_ab_t = 100000.0
+    last_ab = float(initial_capital)
+    last_ab_t = float(initial_capital)
     split_rows = []
+    trades_ab = []
+    trades_ab_taker = []
 
     for si, sp in enumerate(splits, start=1):
         train_years = sp["train"]
@@ -316,6 +329,8 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
             dd_threshold_2=dd_threshold_2,
             dd_scale_1=dd_scale_1,
             dd_scale_2=dd_scale_2,
+            initial_capital=initial_capital,
+            record_equity_every_bar=record_equity_every_bar,
         )
         tr_s_in, eq_s_in = _simulate_shock_years(
             df_dict,
@@ -341,6 +356,8 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
             dd_threshold_2=dd_threshold_2,
             dd_scale_1=dd_scale_1,
             dd_scale_2=dd_scale_2,
+            initial_capital=initial_capital,
+            record_equity_every_bar=record_equity_every_bar,
         )
 
         best_w = float(weights[0])
@@ -382,6 +399,8 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
             dd_threshold_2=dd_threshold_2,
             dd_scale_1=dd_scale_1,
             dd_scale_2=dd_scale_2,
+            initial_capital=initial_capital,
+            record_equity_every_bar=record_equity_every_bar,
         )
         tr_s, eq_s = simulate_shockscore(
             df_dict,
@@ -407,11 +426,25 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
             dd_threshold_2=dd_threshold_2,
             dd_scale_1=dd_scale_1,
             dd_scale_2=dd_scale_2,
+            initial_capital=initial_capital,
+            record_equity_every_bar=record_equity_every_bar,
         )
 
         eq_combo_ab = combine_equity(eq_b, eq_s, best_w)
-        eq_combo_ab, last_ab = link_equity(eq_combo_ab, last_ab)
+        eq_combo_ab, last_ab = link_equity(eq_combo_ab, last_ab, base_cap=float(initial_capital))
         eq_ab.append(eq_combo_ab)
+        if tr_b is not None and not tr_b.empty:
+            x = tr_b.copy()
+            x["component"] = "trend"
+            x["split"] = int(si)
+            x["test_year"] = int(test_year)
+            trades_ab.append(x)
+        if tr_s is not None and not tr_s.empty:
+            x = tr_s.copy()
+            x["component"] = "shock"
+            x["split"] = int(si)
+            x["test_year"] = int(test_year)
+            trades_ab.append(x)
 
         tr_b_t, eq_b_t = simulate_v2xa(
             df_dict,
@@ -439,6 +472,8 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
             dd_threshold_2=dd_threshold_2,
             dd_scale_1=dd_scale_1,
             dd_scale_2=dd_scale_2,
+            initial_capital=initial_capital,
+            record_equity_every_bar=record_equity_every_bar,
         )
         tr_s_t, eq_s_t = simulate_shockscore(
             df_dict,
@@ -464,10 +499,24 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
             dd_threshold_2=dd_threshold_2,
             dd_scale_1=dd_scale_1,
             dd_scale_2=dd_scale_2,
+            initial_capital=initial_capital,
+            record_equity_every_bar=record_equity_every_bar,
         )
         eq_combo_ab_t = combine_equity(eq_b_t, eq_s_t, best_w)
-        eq_combo_ab_t, last_ab_t = link_equity(eq_combo_ab_t, last_ab_t)
+        eq_combo_ab_t, last_ab_t = link_equity(eq_combo_ab_t, last_ab_t, base_cap=float(initial_capital))
         eq_ab_taker.append(eq_combo_ab_t)
+        if tr_b_t is not None and not tr_b_t.empty:
+            x = tr_b_t.copy()
+            x["component"] = "trend"
+            x["split"] = int(si)
+            x["test_year"] = int(test_year)
+            trades_ab_taker.append(x)
+        if tr_s_t is not None and not tr_s_t.empty:
+            x = tr_s_t.copy()
+            x["component"] = "shock"
+            x["split"] = int(si)
+            x["test_year"] = int(test_year)
+            trades_ab_taker.append(x)
 
         m_ab = calc_equity_metrics(eq_combo_ab)
         m_ab_t = calc_equity_metrics(eq_combo_ab_t)
@@ -484,6 +533,8 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
 
     eq_ab_all = pd.concat(eq_ab) if eq_ab else pd.DataFrame()
     eq_ab_t_all = pd.concat(eq_ab_taker) if eq_ab_taker else pd.DataFrame()
+    tr_ab_all = pd.concat(trades_ab) if trades_ab else pd.DataFrame()
+    tr_ab_t_all = pd.concat(trades_ab_taker) if trades_ab_taker else pd.DataFrame()
 
     return {
         "splits": pd.DataFrame(split_rows),
@@ -493,4 +544,6 @@ def run_wfo_fast(cfg: dict) -> dict[str, object]:
         "year_AB_taker": year_table(eq_ab_t_all),
         "equity_AB": eq_ab_all,
         "equity_AB_taker": eq_ab_t_all,
+        "trades_AB": tr_ab_all,
+        "trades_AB_taker": tr_ab_t_all,
     }

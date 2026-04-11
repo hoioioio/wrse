@@ -60,9 +60,11 @@ def simulate_v2xa(
     dd_threshold_2: float = 0.10,
     dd_scale_1: float = 0.7,
     dd_scale_2: float = 0.4,
+    initial_capital: float = 100000.0,
+    record_equity_every_bar: bool = False,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    capital = 100000.0
-    peak = 100000.0
+    capital = float(initial_capital)
+    peak = float(initial_capital)
     positions: dict[str, dict] = {}
     trades = []
     equity = []
@@ -133,10 +135,37 @@ def simulate_v2xa(
                     if not ok:
                         px = apply_slip(px, exit_side, slip_bps)
                         fee_r = float(taker_fee_rate)
-                pnl = (float(px) - float(pos["entry"])) * float(pos["qty"]) if pos["side"] == "buy" else (float(pos["entry"]) - float(px)) * float(pos["qty"])
+                entry_px = float(pos["entry"])
+                qty = float(pos["qty"])
+                trade_value = abs(entry_px * qty)
+                pnl = (float(px) - entry_px) * qty if pos["side"] == "buy" else (entry_px - float(px)) * qty
+                exit_fee = fee_cost(float(px) * qty, float(fee_r))
                 capital += pnl
-                capital -= fee_cost(float(px) * float(pos["qty"]), float(fee_r))
-                trades.append({"time": t, "symbol": sym, "side": pos["side"], "pnl": pnl, "reason": reason})
+                capital -= exit_fee
+                entry_fee = float(pos.get("entry_fee", 0.0))
+                trades.append(
+                    {
+                        "time": t_next,
+                        "symbol": sym,
+                        "side": pos["side"],
+                        "entry_time": pos.get("entry_time"),
+                        "exit_time": t_next,
+                        "entry_px": entry_px,
+                        "exit_px": float(px),
+                        "qty": qty,
+                        "trade_value": trade_value,
+                        "pnl": float(pnl),
+                        "pnl_net": float(pnl) - float(entry_fee) - float(exit_fee),
+                        "pnl_pct": (float(pnl) / float(trade_value)) if trade_value > 0 else np.nan,
+                        "entry_fee": float(entry_fee),
+                        "exit_fee": float(exit_fee),
+                        "sl_px": float(pos.get("sl", np.nan)),
+                        "risk_to_sl": float(pos.get("risk_to_sl", np.nan)),
+                        "reason": reason,
+                        "bars": int(pos.get("bars", 0)),
+                        "stage": int(pos.get("stage", 1)),
+                    }
+                )
                 closed.append(sym)
             else:
                 if int(pos.get("stage", 1)) == 1:
@@ -147,12 +176,15 @@ def simulate_v2xa(
                         if not ok:
                             fill_px = apply_slip(nxt_open, pos["side"], slip_bps)
                             fee_r = float(taker_fee_rate)
-                        capital -= fee_cost(float(fill_px) * add_qty, float(fee_r))
+                        add_fee = fee_cost(float(fill_px) * add_qty, float(fee_r))
+                        capital -= add_fee
                         new_qty = float(pos["qty"]) + add_qty
                         new_entry = (float(pos["entry"]) * float(pos["qty"]) + float(fill_px) * add_qty) / new_qty
                         pos["qty"] = new_qty
                         pos["entry"] = new_entry
                         pos["stage"] = 2
+                        pos["entry_fee"] = float(pos.get("entry_fee", 0.0)) + float(add_fee)
+                        pos["risk_to_sl"] = abs(float(new_entry) - float(pos["sl"])) * float(new_qty)
 
         for sym in closed:
             del positions[sym]
@@ -232,11 +264,35 @@ def simulate_v2xa(
                     continue
                 qty = float(pos_usd) / float(fill_px)
                 sl = float(fill_px) * (1 - float(sl_pct)) if side == "buy" else float(fill_px) * (1 + float(sl_pct))
-                capital -= fee_cost(float(fill_px) * qty, float(fee_r))
-                positions[sym] = {"side": side, "entry": float(fill_px), "qty": qty, "sl": sl, "stage": 1, "bars": 0}
+                entry_fee = fee_cost(float(fill_px) * qty, float(fee_r))
+                capital -= entry_fee
+                positions[sym] = {
+                    "side": side,
+                    "entry": float(fill_px),
+                    "qty": qty,
+                    "sl": sl,
+                    "stage": 1,
+                    "bars": 0,
+                    "entry_time": t_next,
+                    "entry_fee": float(entry_fee),
+                    "risk_to_sl": abs(float(fill_px) - float(sl)) * float(qty),
+                }
 
-        if t.hour == 0 and t.minute == 0:
-            equity.append({"time": t, "capital": capital})
+        mtm = float(capital)
+        for sym in list(positions.keys()):
+            df = df_dict.get(sym)
+            if df is None or t not in df.index:
+                continue
+            row = df.loc[t]
+            px_m = float(row.get("close", np.nan))
+            if not np.isfinite(px_m):
+                continue
+            pos = positions[sym]
+            mtm_pnl = (float(px_m) - float(pos["entry"])) * float(pos["qty"]) if pos["side"] == "buy" else (float(pos["entry"]) - float(px_m)) * float(pos["qty"])
+            mtm += float(mtm_pnl)
+
+        if bool(record_equity_every_bar) or (t.hour == 0 and t.minute == 0):
+            equity.append({"time": t, "capital": float(capital), "equity": float(mtm)})
 
     return pd.DataFrame(trades), pd.DataFrame(equity)
 
@@ -265,9 +321,11 @@ def simulate_shockscore(
     dd_threshold_2: float = 0.10,
     dd_scale_1: float = 0.7,
     dd_scale_2: float = 0.4,
+    initial_capital: float = 100000.0,
+    record_equity_every_bar: bool = False,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    capital = 100000.0
-    peak = 100000.0
+    capital = float(initial_capital)
+    peak = float(initial_capital)
     positions: dict[str, dict] = {}
     trades = []
     equity = []
@@ -329,10 +387,36 @@ def simulate_shockscore(
                     if not ok:
                         px = apply_slip(px, exit_side, slip_bps)
                         fee_r = float(taker_fee_rate)
-                pnl = (float(px) - float(pos["entry"])) * float(pos["qty"]) if pos["side"] == "buy" else (float(pos["entry"]) - float(px)) * float(pos["qty"])
+                entry_px = float(pos["entry"])
+                qty = float(pos["qty"])
+                trade_value = abs(entry_px * qty)
+                pnl = (float(px) - entry_px) * qty if pos["side"] == "buy" else (entry_px - float(px)) * qty
+                exit_fee = fee_cost(float(px) * qty, float(fee_r))
                 capital += pnl
-                capital -= fee_cost(float(px) * float(pos["qty"]), float(fee_r))
-                trades.append({"time": t, "symbol": sym, "side": pos["side"], "pnl": pnl, "reason": reason})
+                capital -= exit_fee
+                entry_fee = float(pos.get("entry_fee", 0.0))
+                trades.append(
+                    {
+                        "time": t_next,
+                        "symbol": sym,
+                        "side": pos["side"],
+                        "entry_time": pos.get("entry_time"),
+                        "exit_time": t_next,
+                        "entry_px": entry_px,
+                        "exit_px": float(px),
+                        "qty": qty,
+                        "trade_value": trade_value,
+                        "pnl": float(pnl),
+                        "pnl_net": float(pnl) - float(entry_fee) - float(exit_fee),
+                        "pnl_pct": (float(pnl) / float(trade_value)) if trade_value > 0 else np.nan,
+                        "entry_fee": float(entry_fee),
+                        "exit_fee": float(exit_fee),
+                        "sl_px": float(pos.get("sl", np.nan)),
+                        "risk_to_sl": float(pos.get("risk_to_sl", np.nan)),
+                        "reason": reason,
+                        "bars": int(pos.get("bars", 0)),
+                    }
+                )
                 closed.append(sym)
 
         for sym in closed:
@@ -386,10 +470,24 @@ def simulate_shockscore(
                     continue
                 qty = float(pos_usd) / float(fill_px)
                 sl = float(fill_px) * (1 - float(sl_pct)) if side == "buy" else float(fill_px) * (1 + float(sl_pct))
-                capital -= fee_cost(float(fill_px) * qty, float(fee_r))
-                positions[sym] = {"side": side, "entry": float(fill_px), "qty": qty, "sl": sl, "bars": 0}
+                entry_fee = fee_cost(float(fill_px) * qty, float(fee_r))
+                capital -= entry_fee
+                positions[sym] = {"side": side, "entry": float(fill_px), "qty": qty, "sl": sl, "bars": 0, "entry_time": t_next, "entry_fee": float(entry_fee), "risk_to_sl": abs(float(fill_px) - float(sl)) * float(qty)}
 
-        if t.hour == 0 and t.minute == 0:
-            equity.append({"time": t, "capital": capital})
+        mtm = float(capital)
+        for sym in list(positions.keys()):
+            df = df_dict.get(sym)
+            if df is None or t not in df.index:
+                continue
+            row = df.loc[t]
+            px_m = float(row.get("close", np.nan))
+            if not np.isfinite(px_m):
+                continue
+            pos = positions[sym]
+            mtm_pnl = (float(px_m) - float(pos["entry"])) * float(pos["qty"]) if pos["side"] == "buy" else (float(pos["entry"]) - float(px_m)) * float(pos["qty"])
+            mtm += float(mtm_pnl)
+
+        if bool(record_equity_every_bar) or (t.hour == 0 and t.minute == 0):
+            equity.append({"time": t, "capital": float(capital), "equity": float(mtm)})
 
     return pd.DataFrame(trades), pd.DataFrame(equity)
