@@ -49,6 +49,7 @@ def main() -> int:
         ("v1_exec_aware", "prop/hyrotrader_25k_swing_bybit/candidates/strategy_params.hyro_25k_swing_v1_exec_aware.toml"),
         ("v2_wider_sl", "prop/hyrotrader_25k_swing_bybit/candidates/strategy_params.hyro_25k_swing_v2_wider_sl.toml"),
         ("v3_trend_only", "prop/hyrotrader_25k_swing_bybit/candidates/strategy_params.hyro_25k_swing_v3_trend_only.toml"),
+        ("v4_taker_optimized", "prop/hyrotrader_25k_swing_bybit/candidates/strategy_params.hyro_25k_swing_v4_taker_optimized.toml"),
     ]
 
     rows = []

@@ -176,6 +176,16 @@ def simulate_v2xa(
                         if not ok:
                             fill_px = apply_slip(nxt_open, pos["side"], slip_bps)
                             fee_r = float(taker_fee_rate)
+                        if float(notional_cap) > 0:
+                            max_qty = float(notional_cap) / float(fill_px)
+                            rem = float(max_qty) - float(pos["qty"])
+                            if rem <= 0:
+                                pos["stage"] = 2
+                                continue
+                            add_qty = float(min(float(add_qty), float(rem)))
+                            if add_qty <= 0:
+                                pos["stage"] = 2
+                                continue
                         add_fee = fee_cost(float(fill_px) * add_qty, float(fee_r))
                         capital -= add_fee
                         new_qty = float(pos["qty"]) + add_qty
